@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#04070f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex">
+<style>html{color-scheme:dark}body{margin:0;font-size:14px}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Leveling System</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one narrow "system window" column; a status strip on top, tabbed panels below. Single dark look by design. */
+:root{
+  color-scheme:dark;
+  --void:#04070f; --panel:#0a1322; --panel2:#0e1b30; --line:#1d3a5f; --glow:#3fb6ff; --glow2:#7ad8ff;
+  --ink:#dcecff; --dim:#7f9bbd; --gold:#ffc857; --danger:#ff4d6d; --ok:#4dffb0; --violet:#9d7bff;
+  --f-display:'Rajdhani','Segoe UI',sans-serif; --f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif; --f-num:'JetBrains Mono',Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--void);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  background-image:radial-gradient(900px 500px at 50% -10%,rgba(63,182,255,.16),transparent 70%),linear-gradient(rgba(63,182,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(63,182,255,.035) 1px,transparent 1px);
+  background-size:auto,32px 32px,32px 32px;background-attachment:fixed}
+.wrap{max-width:920px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--f-display);letter-spacing:.08em;text-transform:uppercase;margin:0;text-wrap:balance}
+h2{font-size:18px;color:var(--glow2)} h3{font-size:15px;color:var(--dim)}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.win{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);position:relative;padding:16px;
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));box-shadow:inset 0 0 28px rgba(63,182,255,.07)}
+.win::before{content:"";position:absolute;left:0;top:0;width:44px;height:2px;background:var(--glow);box-shadow:0 0 12px var(--glow)}
+.win.alert{border-color:var(--danger)} .win.alert::before{background:var(--danger);box-shadow:0 0 12px var(--danger)}
+.tag{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.18em;color:var(--glow);text-transform:uppercase}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center} .grow{flex:1;min-width:0} .col{display:flex;flex-direction:column;gap:10px}
+.sp{justify-content:space-between}
+/* status */
+.status{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+.rank{width:84px;height:84px;display:grid;place-items:center;border:2px solid var(--glow);font-family:var(--f-display);font-weight:700;font-size:46px;color:var(--glow2);
+  text-shadow:0 0 18px var(--glow);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:rgba(63,182,255,.08)}
+.name{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:.06em;line-height:1.1}
+.bar{height:10px;background:#061020;border:1px solid var(--line);position:relative;overflow:hidden}
+.bar>i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#1c6fd1,var(--glow2));box-shadow:0 0 12px var(--glow);transition:width .6s ease}
+.bar.gold>i{background:linear-gradient(90deg,#b8791a,var(--gold));box-shadow:0 0 10px var(--gold)}
+.bar.ok>i{background:linear-gradient(90deg,#149a63,var(--ok));box-shadow:0 0 10px var(--ok)}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.chip{border:1px solid var(--line);padding:8px 10px;background:rgba(4,7,15,.5)}
+.chip b{display:block;font-family:var(--f-num);font-size:22px;color:var(--ink)} .chip span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-family:var(--f-display);font-weight:600}
+.chip.fire b{color:var(--gold)} .chip.bad b{color:var(--danger)}
+/* tabs */
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.tabs button{flex:1 0 auto}
+button{font-family:var(--f-display);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:14px;color:var(--glow2);background:rgba(63,182,255,.08);border:1px solid var(--line);padding:9px 14px;cursor:pointer}
+button:hover{border-color:var(--glow);background:rgba(63,182,255,.16)} button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--glow2);outline-offset:2px}
+button.on{background:var(--glow);color:#02101f;border-color:var(--glow);box-shadow:0 0 16px rgba(63,182,255,.5)}
+button.go{background:linear-gradient(90deg,#1c6fd1,var(--glow));color:#02101f;border-color:var(--glow2)}
+button.ghost{background:transparent;color:var(--dim);font-size:12px;padding:5px 9px}
+button.danger{color:var(--danger);border-color:var(--danger);background:rgba(255,77,109,.08)}
+button:disabled{opacity:.4;cursor:not-allowed}
+label{display:flex;flex-direction:column;gap:4px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-family:var(--f-display);font-weight:600}
+input,select,textarea{font:inherit;font-size:15px;color:var(--ink);background:#061020;border:1px solid var(--line);padding:8px 10px;width:100%;letter-spacing:0;text-transform:none}
+textarea{min-height:70px;resize:vertical}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px} .form .wide{grid-column:1/-1}
+/* quests */
+.quest{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)}
+.quest:last-child{border-bottom:0}
+.box{width:18px;height:18px;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;color:#02101f}
+.quest.done .box{background:var(--ok);border-color:var(--ok)} .quest.done .ql{color:var(--dim);text-decoration:line-through}
+.quest.pen .ql{color:var(--danger)}
+.muted{color:var(--dim);font-size:13px} .err{color:var(--danger);font-size:13px;min-height:18px}
+.log{display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:8px 0;border-bottom:1px solid rgba(29,58,95,.6);align-items:start}
+.log .xp{color:var(--ok)} .pill{font-family:var(--f-display);font-weight:700;font-size:11px;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--line);padding:1px 7px;color:var(--glow2);white-space:nowrap}
+/* skills */
+.skill{border:1px solid var(--line);background:rgba(4,7,15,.45)}
+.skill>summary{list-style:none;cursor:pointer;padding:12px;display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center}
+.skill>summary::-webkit-details-marker{display:none}
+.skill .body{padding:0 12px 12px;display:flex;flex-direction:column;gap:6px}
+.topic{display:flex;gap:10px;align-items:flex-start;padding:4px 0}
+.topic input{width:18px;height:18px;flex:none;margin-top:2px;accent-color:var(--glow)}
+.topic.done span{color:var(--dim);text-decoration:line-through} .topic.next span{color:var(--gold)}
+/* tree nodes */
+.nodes{display:flex;flex-wrap:wrap;gap:6px}
+.node{font-family:var(--f-body);font-weight:500;font-size:13px;letter-spacing:0;text-transform:none;padding:5px 9px;color:#5d7391;background:#070e1a;border:1px solid #16263d;text-align:left}
+.node:hover{border-color:var(--dim);background:#0a1424}
+.node.lit{color:var(--ink);background:rgba(63,182,255,.14);border-color:var(--glow);box-shadow:0 0 8px rgba(63,182,255,.35)}
+.node i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:1px;opacity:.4}
+.node.lit i{opacity:1}
+.node i.E{background:var(--ok)}.node i.M{background:var(--gold)}.node i.H{background:var(--danger)}
+.ghead{font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:10px;display:flex;justify-content:space-between;gap:10px}
+/* literal trees */
+.treewrap{overflow-x:auto;border:1px solid #12233c;background:radial-gradient(500px 380px at 50% 60%,rgba(63,182,255,.09),transparent 70%),#050a14}
+.tree{display:block;width:100%;min-width:700px;height:auto}
+.tree .strand{fill:none;stroke:#1b3352;stroke-linecap:round;stroke-linejoin:round}
+.tree .strand.on{stroke:var(--glow)}
+.tree .w{fill:none;stroke:#1b3352;stroke-width:4;stroke-linecap:round}
+.tree .part .w{stroke:#2f76b8}
+.tree .full .w{stroke:var(--ok)}
+.tree .hit{fill:none;stroke:transparent;stroke-width:66;pointer-events:stroke;cursor:pointer}
+.tree .leaf{fill:#0c1a2c;stroke:#2a4162;stroke-width:1.2}
+.tree .leaf.lit{fill:var(--glow2);stroke:#eaf6ff}
+.tree text{font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:.05em;fill:var(--dim);text-transform:uppercase;cursor:pointer}
+.tree .full text{fill:var(--ok)}
+.tree .sel text{fill:var(--gold)}
+.tree .sel .w{stroke-width:6}
+.tree .w.thin,.tree .sel .w.thin{stroke-width:2;opacity:.6}
+.tree .fig{fill:#0d2038;stroke:var(--glow2);stroke-width:1.5}
+.tree .arm{fill:none;stroke:var(--glow2);stroke-width:3;stroke-linecap:round}
+.tree .seat{fill:#07101d;stroke:var(--glow);stroke-width:2}
+.tree .seatt{fill:var(--gold);font-size:17px;cursor:default}
+.tree .crown{fill:#0c1a2c;stroke:#2a4162;stroke-width:1.5}
+.tree .crown.on{fill:var(--gold);stroke:var(--gold)}
+/* heat */
+.heat{display:grid;grid-template-rows:repeat(7,14px);grid-auto-flow:column;grid-auto-columns:14px;gap:3px;overflow-x:auto;padding-bottom:4px}
+.heat i{display:block;background:#0a1626;border:1px solid #12233c}
+.heat i.c{background:var(--glow);border-color:var(--glow2);box-shadow:0 0 6px rgba(63,182,255,.6)} .heat i.f{background:var(--danger);border-color:var(--danger)} .heat i.s{background:var(--violet);border-color:var(--violet)} .heat i.p{background:#17406c}
+.legend i{display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-1px}
+/* modal */
+.veil{position:fixed;inset:0;background:rgba(2,5,12,.82);display:grid;place-items:center;z-index:50;padding:16px}
+.veil .win{max-width:460px;width:100%;animation:open .28s ease-out;text-align:center;padding:24px 20px}
+.veil h2{font-size:24px;margin:6px 0 10px;text-shadow:0 0 16px var(--glow)} .veil .alert h2{color:var(--danger);text-shadow:0 0 16px var(--danger)}
+@keyframes open{from{transform:scaleY(.2);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:520px){.status{grid-template-columns:1fr}.rank{width:66px;height:66px;font-size:36px}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <section class="win" aria-label="Status">
+    <div class="row sp"><span class="tag">Status window</span><span class="muted" id="sync">Connecting…</span></div>
+    <div class="status" style="margin-top:10px">
+      <div class="rank" id="rank">E</div>
+      <div class="col grow">
+        <div class="row sp"><div class="name" id="pname">Player</div><div class="num" id="lvl">LV 1</div></div>
+        <div class="bar"><i id="xpbar" style="width:0"></i></div>
+        <div class="row sp muted"><span class="num" id="xptxt">0 / 300 XP</span><span id="title">Unawakened</span></div>
+      </div>
+    </div>
+    <div class="chips" style="margin-top:14px">
+      <div class="chip fire"><b id="c-streak">0</b><span>Day streak</span></div>
+      <div class="chip"><b id="c-best">0</b><span>Best streak</span></div>
+      <div class="chip"><b id="c-shield">0</b><span>Shields</span></div>
+      <div class="chip"><b id="c-left">--:--</b><span>Left today</span></div>
+      <div class="chip bad"><b id="c-fail">0</b><span>Days failed</span></div>
+    </div>
+  </section>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="quests" class="on">Quests</button><button data-tab="skills">Skill trees</button><button data-tab="history">History</button><button data-tab="rules">Rules</button><button data-tab="settings">Settings</button>
+  </nav>
+
+  <div id="tab-quests" class="col" style="gap:16px">
+    <section class="win" id="questwin">
+      <div class="row sp"><h2 id="qhead">Daily quest</h2><span class="pill" id="qstate">In progress</span></div>
+      <p class="muted" id="qsub" style="margin:4px 0 6px"></p>
+      <div id="quests"></div>
+    </section>
+    <section class="win">
+      <div class="row sp"><h2>Focus session</h2><span class="num" id="tclock" style="font-size:22px;color:var(--gold)">50:00</span></div>
+      <div class="row" style="margin-top:8px">
+        <label class="grow">Skill<select id="t-track"></select></label>
+        <button id="t-start" class="go">Start 50 min</button><button id="t-stop" hidden>Stop and log</button>
+      </div>
+      <p class="muted" style="margin:8px 0 0">The clock keeps running if you close the page. Stopping opens the log with the minutes filled in.</p>
+    </section>
+    <section class="win">
+      <h2>Log entry</h2>
+      <p class="muted" style="margin:4px 0 10px">Only today can be logged. No backdating, no edits after ten minutes.</p>
+      <form id="logform" class="form">
+        <label>Type<select id="f-kind">
+          <option value="study">Study session</option><option value="problem">Problems solved</option><option value="revise">Revision / recall</option><option value="mock">Mock interview</option><option value="job">Job hunt action</option></select></label>
+        <label>Skill<select id="f-track"></select></label>
+        <label>Minutes<input id="f-min" type="number" min="0" max="240" inputmode="numeric" value="50"></label>
+        <label id="l-cnt" hidden>Count<input id="f-cnt" type="number" min="1" max="30" inputmode="numeric" value="1"></label>
+        <label id="l-diff" hidden>Difficulty<select id="f-diff"><option value="e">Easy</option><option value="m" selected>Medium</option><option value="h">Hard</option></select></label>
+        <label class="wide"><span id="l-note">What did you learn? (at least 20 characters)</span><textarea id="f-note" maxlength="600"></textarea></label>
+        <div class="wide row sp"><span class="err" id="f-err" role="alert"></span><button class="go" type="submit">Submit to the system</button></div>
+      </form>
+    </section>
+    <section class="win"><h2>Today's log</h2><div id="todaylog" style="margin-top:6px"></div></section>
+  </div>
+
+  <div id="tab-skills" class="col" hidden>
+    <section class="win"><div class="row sp"><h2>Skill trees</h2><span class="muted">Dark leaves are not mastered. Light them all.</span></div>
+      <div id="skills" class="col" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:14px"><label class="grow">New tree<input id="newskill" maxlength="40" placeholder="Name of a tree to add"></label><button id="addskill">Add tree</button></div>
+    </section>
+  </div>
+
+  <div id="tab-history" class="col" hidden>
+    <section class="win"><h2>Last 16 weeks</h2>
+      <div class="heat" id="heat" style="margin-top:12px"></div>
+      <p class="muted legend" style="margin:10px 0 0"><i style="background:var(--glow)"></i>Cleared &nbsp; <i style="background:#17406c"></i>Logged, not cleared &nbsp; <i style="background:var(--violet)"></i>Shield used &nbsp; <i style="background:var(--danger)"></i>Failed</p>
+    </section>
+    <section class="win"><h2>Totals</h2><div class="chips" id="totals" style="margin-top:10px"></div></section>
+    <section class="win"><h2>Recent entries</h2><div id="alllog" style="margin-top:6px"></div></section>
+  </div>
+
+  <div id="tab-rules" class="col" hidden>
+    <section class="win"><h2>System rules</h2>
+      <div class="col muted" style="margin-top:10px;font-size:14px;color:var(--ink)">
+        <p style="margin:0"><b>Daily quest.</b> Every day has four objectives: focused minutes, DSA problems, at least two different skills, and job hunt actions on weekdays. Clear all four and the day counts.</p>
+        <p style="margin:0"><b>Streak.</b> A cleared day adds one. Every 7th day in a row earns a shield (you can hold two).</p>
+        <p style="margin:0"><b>Missed day.</b> The day closes at midnight. If it was not cleared, a shield is burned. With no shield: the streak resets to zero, you lose 200 XP (levels can drop), and a penalty is added.</p>
+        <p style="margin:0"><b>Penalty.</b> Each penalty adds 60 minutes to the next daily quest, up to two. Clearing a day wipes the penalty.</p>
+        <p style="margin:0"><b>XP.</b> Study and revision: 2 XP a minute. Mock interview: 3 XP a minute. Problems: 20 / 40 / 80 XP for easy / medium / hard, plus 1 XP a minute. Job hunt action: 15 XP. Node lit in a skill tree: 50 XP. A DSA node counts as a solved problem instead. Daily clear: 100 XP plus 5 per streak day (up to 100 extra).</p>
+        <p style="margin:0"><b>Revision cycles.</b> When every node of the DSA tree or the System Design tree is lit, you get 500 XP and the whole tree goes dark again for the next revision cycle.</p>
+        <p style="margin:0"><b>Ranks.</b> E from level 1, D from 8, C from 16, B from 28, A from 42, S from 60.</p>
+        <p style="margin:0"><b>No cheating yourself.</b> Entries need a real note. You cannot log yesterday. An entry can be undone for ten minutes, then it is permanent.</p>
+      </div>
+    </section>
+  </div>
+
+  <div id="tab-settings" class="col" hidden>
+    <section class="win"><h2>Player</h2>
+      <div class="form" style="margin-top:10px">
+        <label>Name<input id="s-name" maxlength="24"></label>
+        <label>Weekday minutes<input id="s-wdMin" type="number" min="30" max="600"></label>
+        <label>Weekend minutes<input id="s-weMin" type="number" min="30" max="900"></label>
+        <label>Weekday DSA problems<input id="s-wdDsa" type="number" min="0" max="20"></label>
+        <label>Weekend DSA problems<input id="s-weDsa" type="number" min="0" max="20"></label>
+        <label>Weekday job actions<input id="s-wdJob" type="number" min="0" max="20"></label>
+        <div class="wide row sp"><span class="muted" id="s-msg">Changing targets applies from tomorrow.</span><button id="s-save">Save</button></div>
+      </div>
+    </section>
+    <section class="win" id="ghwin"><h2>Sync across devices</h2>
+      <p class="muted" style="margin:6px 0 10px">Keeps your progress in a private GitHub repository so the phone and the laptop show the same data. Enter this once on each device. The token is stored only in this browser.</p>
+      <div class="form"><label>Private repository (owner/name)<input id="gh-repo" autocomplete="off" spellcheck="false"></label><label>Access token<input id="gh-token" type="password" autocomplete="off" placeholder="Paste the token"></label>
+      <div class="wide row sp"><span class="muted grow" id="gh-msg"></span><div class="row"><button id="gh-off" class="ghost">Disconnect</button><button id="gh-on">Connect</button></div></div></div>
+    </section>
+    <section class="win"><h2>Backup</h2>
+      <p class="muted" style="margin:6px 0 10px">Copy this text somewhere safe now and then. Paste a backup here and press Restore to load it.</p>
+      <textarea id="backup" spellcheck="false" style="font-family:var(--f-num);font-size:12px"></textarea>
+      <div class="row" style="margin-top:8px"><button id="b-copy">Copy backup</button><button id="b-load">Restore from text</button><span class="muted" id="b-msg"></span></div>
+    </section>
+    <section class="win alert"><h2 style="color:var(--danger)">Reset</h2>
+      <p class="muted" style="margin:6px 0 10px">Wipes level, streak, logs and roadmap progress.</p>
+      <div class="row"><button class="danger" id="r1">Reset everything</button><button class="danger" id="r2" hidden>Yes, wipe it all</button><button id="r3" hidden>Cancel</button></div>
+    </section>
+  </div>
+</div>
+<div id="veil" class="veil" hidden><div class="win" id="mwin"><span class="tag" id="mtag">System</span><h2 id="mtitle"></h2><p id="mbody" style="margin:0 0 16px"></p><button id="mok" class="go">Acknowledge</button></div></div>
+
+<script>
+"use strict";
+const KEY='ascent-system-v1', DAY=864e5;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dstr=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const dparse=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c).getTime()};
+const addDays=(s,n)=>{const d=new Date(dparse(s));d.setDate(d.getDate()+n);return dstr(d.getTime())};
+const today=()=>dstr(Date.now());
+const EXEMPT={'2026-11-15':1};
+const T=(id,name,groups,o)=>Object.assign({id,name,topics:[].concat(...groups.map(g=>g[1].map(n=>g[0]?{n,g:g[0],done:false}:{n,done:false})))},o||{});
+/* NeetCode 250, read from the player's own progress on 15 Nov 2026: section, solved flags, problems (name~difficulty). */
+const NC=[
+["Arrays & Hashing","1111111111111001011111","Concatenation of Array~E|Contains Duplicate~E|Valid Anagram~E|Two Sum~E|Longest Common Prefix~E|Group Anagrams~M|Remove Element~E|Majority Element~E|Design HashSet~E|Design HashMap~E|Sort an Array~M|Sort Colors~M|Top K Frequent Elements~M|Encode and Decode Strings~M|Range Sum Query 2D Immutable~M|Product of Array Except Self~M|Valid Sudoku~M|Longest Consecutive Sequence~M|Best Time to Buy And Sell Stock II~M|Majority Element II~M|Subarray Sum Equals K~M|First Missing Positive~H"],
+["Two Pointers","1111111111111","Reverse String~E|Valid Palindrome~E|Valid Palindrome II~E|Merge Strings Alternately~E|Merge Sorted Array~E|Remove Duplicates From Sorted Array~E|Two Sum II Input Array Is Sorted~M|3Sum~M|4Sum~M|Rotate Array~M|Container With Most Water~M|Boats to Save People~M|Trapping Rain Water~H"],
+["Sliding Window","111011100","Contains Duplicate II~E|Best Time to Buy And Sell Stock~E|Longest Substring Without Repeating Characters~M|Longest Repeating Character Replacement~M|Permutation In String~M|Minimum Size Subarray Sum~M|Find K Closest Elements~M|Minimum Window Substring~H|Sliding Window Maximum~H"],
+["Binary Search","11111111110100","Binary Search~E|Search Insert Position~E|Guess Number Higher Or Lower~E|Sqrt(x)~E|Search a 2D Matrix~M|Koko Eating Bananas~M|Capacity to Ship Packages Within D Days~M|Find Minimum In Rotated Sorted Array~M|Search In Rotated Sorted Array~M|Search In Rotated Sorted Array II~M|Time Based Key Value Store~M|Split Array Largest Sum~H|Median of Two Sorted Arrays~H|Find in Mountain Array~H"],
+["Linked List","11111111111000","Reverse Linked List~E|Merge Two Sorted Lists~E|Linked List Cycle~E|Reorder List~M|Remove Nth Node From End of List~M|Copy List With Random Pointer~M|Add Two Numbers~M|Find The Duplicate Number~M|Reverse Linked List II~M|Design Circular Queue~M|LRU Cache~M|LFU Cache~H|Merge K Sorted Lists~H|Reverse Nodes In K Group~H"],
+["Stack","11111111111111","Baseball Game~E|Valid Parentheses~E|Implement Stack Using Queues~E|Implement Queue using Stacks~E|Min Stack~M|Evaluate Reverse Polish Notation~M|Asteroid Collision~M|Daily Temperatures~M|Online Stock Span~M|Car Fleet~M|Simplify Path~M|Decode String~M|Maximum Frequency Stack~H|Largest Rectangle In Histogram~H"],
+["Trees","11111111111111111110100","Binary Tree Inorder Traversal~E|Binary Tree Preorder Traversal~E|Binary Tree Postorder Traversal~E|Invert Binary Tree~E|Maximum Depth of Binary Tree~E|Diameter of Binary Tree~E|Balanced Binary Tree~E|Same Tree~E|Subtree of Another Tree~E|Lowest Common Ancestor of a Binary Search Tree~M|Insert into a Binary Search Tree~M|Delete Node in a BST~M|Binary Tree Level Order Traversal~M|Binary Tree Right Side View~M|Construct Quad Tree~M|Count Good Nodes In Binary Tree~M|Validate Binary Search Tree~M|Kth Smallest Element In a Bst~M|Construct Binary Tree From Preorder And Inorder Traversal~M|House Robber III~M|Delete Leaves With a Given Value~M|Binary Tree Maximum Path Sum~H|Serialize And Deserialize Binary Tree~H"],
+["Tries","0000","Implement Trie Prefix Tree~M|Design Add And Search Words Data Structure~M|Extra Characters in a String~M|Word Search II~H"],
+["Backtracking","11111111101100000","Sum of All Subsets XOR Total~E|Subsets~M|Combination Sum~M|Combination Sum II~M|Combinations~M|Permutations~M|Subsets II~M|Permutations II~M|Generate Parentheses~M|Word Search~M|Palindrome Partitioning~M|Letter Combinations of a Phone Number~M|Matchsticks to Square~M|Partition to K Equal Sum Subsets~M|N Queens~H|N Queens II~H|Word Break II~H"],
+["Heap / Priority Queue","111110100000","Kth Largest Element In a Stream~E|Last Stone Weight~E|K Closest Points to Origin~M|Kth Largest Element In An Array~M|Task Scheduler~M|Design Twitter~M|Single Threaded CPU~M|Reorganize String~M|Longest Happy String~M|Car Pooling~M|Find Median From Data Stream~H|IPO~H"],
+["Graphs","000000000000000000000","Island Perimeter~E|Verifying An Alien Dictionary~E|Find the Town Judge~E|Number of Islands~M|Max Area of Island~M|Clone Graph~M|Walls And Gates~M|Rotting Oranges~M|Pacific Atlantic Water Flow~M|Surrounded Regions~M|Open The Lock~M|Course Schedule~M|Course Schedule II~M|Graph Valid Tree~M|Course Schedule IV~M|Number of Connected Components In An Undirected Graph~M|Redundant Connection~M|Accounts Merge~M|Evaluate Division~M|Minimum Height Trees~M|Word Ladder~H"],
+["Advanced Graphs","0000000000","Path with Minimum Effort~M|Network Delay Time~M|Reconstruct Itinerary~H|Min Cost to Connect All Points~M|Swim In Rising Water~H|Alien Dictionary~H|Cheapest Flights Within K Stops~M|Find Critical and Pseudo Critical Edges in Minimum Spanning Tree~H|Build a Matrix With Conditions~H|Greatest Common Divisor Traversal~H"],
+["1-D Dynamic Programming","11110000000000000","Climbing Stairs~E|Min Cost Climbing Stairs~E|N-th Tribonacci Number~E|House Robber~M|House Robber II~M|Longest Palindromic Substring~M|Palindromic Substrings~M|Decode Ways~M|Coin Change~M|Maximum Product Subarray~M|Word Break~M|Longest Increasing Subsequence~M|Partition Equal Subset Sum~M|Combination Sum IV~M|Perfect Squares~M|Integer Break~M|Stone Game III~H"],
+["2-D Dynamic Programming","0000000000000000","Unique Paths~M|Unique Paths II~M|Minimum Path Sum~M|Longest Common Subsequence~M|Last Stone Weight II~M|Best Time to Buy And Sell Stock With Cooldown~M|Coin Change II~M|Target Sum~M|Interleaving String~M|Stone Game~M|Stone Game II~M|Longest Increasing Path In a Matrix~H|Distinct Subsequences~H|Edit Distance~M|Burst Balloons~H|Regular Expression Matching~H"],
+["Greedy","00000000000000","Lemonade Change~E|Maximum Subarray~M|Maximum Sum Circular Subarray~M|Longest Turbulent Subarray~M|Jump Game~M|Jump Game II~M|Jump Game VII~M|Gas Station~M|Hand of Straights~M|Dota2 Senate~M|Merge Triplets to Form Target Triplet~M|Partition Labels~M|Valid Parenthesis String~M|Candy~H"],
+["Intervals","0000000","Insert Interval~M|Merge Intervals~M|Non Overlapping Intervals~M|Meeting Rooms~E|Meeting Rooms II~M|Meeting Rooms III~H|Minimum Interval to Include Each Query~H"],
+["Bit Manipulation","0000000000","Single Number~E|Number of 1 Bits~E|Counting Bits~E|Add Binary~E|Reverse Bits~E|Missing Number~E|Sum of Two Integers~M|Reverse Integer~M|Bitwise AND of Numbers Range~M|Minimum Array End~M"],
+["Math & Geometry","0000000000000","Excel Sheet Column Title~E|Greatest Common Divisor of Strings~E|Insert Greatest Common Divisors in Linked List~M|Transpose Matrix~E|Rotate Image~M|Spiral Matrix~M|Set Matrix Zeroes~M|Happy Number~E|Plus One~E|Roman to Integer~E|Pow(x, n)~M|Multiply Strings~M|Detect Squares~M"]];
+const dsaTrack=()=>({id:'dsa',name:'DSA Tree (NeetCode 250)',auto:true,cycles:true,cycle:0,topics:[].concat(...NC.map(s=>s[2].split('|').map((x,i)=>{const a=x.split('~'),on=s[1][i]==='1';return on?{n:a[0],d:a[1],g:s[0],done:true,pre:1}:{n:a[0],d:a[1],g:s[0],done:false}})))});
+const DEFAULT_TRACKS=()=>[
+ dsaTrack(),
+ T('hld','System Design Tree',[
+  ['Building blocks',['Requirements, scale estimates, API first','Data modelling: SQL vs NoSQL, indexing','Caching: strategies and invalidation','Load balancing and stateless services','Replication, partitioning, sharding','Message queues and async processing','Consistency, CAP, idempotency','Rate limiting and back-pressure','Observability: logs, metrics, tracing']],
+  ['Design problems',['URL shortener','Rate limiter','Notification system','Chat system','News feed','File storage / upload service','Search autocomplete','Job scheduler','Payment system with idempotency','Your own workforce platform at 10x scale']],
+  ['Low-level design',['OOP and SOLID with code','Creational patterns','Structural patterns','Behavioural patterns','Machine coding: parking lot','Machine coding: LRU cache','Machine coding: Splitwise','Machine coding: elevator','Machine coding: ticket booking with concurrency']]],{cycles:true,cycle:0}),
+ T('lang','Languages and Core',[['',['Python','Java','SQL','Bash','Object-Oriented Programming','DBMS']]]),
+ T('backend','Backend',[['',['Django','FastAPI','Spring Boot','Spring Security','REST APIs','Microservices','Hibernate / JPA']]]),
+ T('data','Data and Messaging',[['',['MySQL','Redis','Apache Kafka','Liquibase']]]),
+ T('ai','GenAI / LLM',[['',['RAG (hybrid retrieval)','LLM integration (Claude API)','Hugging Face','PyTorch','OpenVINO','ONNX Runtime','Whisper','INT8 quantization']]]),
+ T('auth','Auth and Security',[['',['OAuth 2.0','JWT','Keycloak','Role-Based Access Control']]]),
+ T('cloud','Cloud and DevOps',[['',['AWS EC2','AWS ELB','Docker','GitHub Actions (CI)','Linux','Git','Jira']]]),
+ T('cert','CCDV-F Certification',[
+  ['Agents and Workflows · 14.7%',['Choosing a workflow or an agent','Building agents with the Claude Agent SDK','Custom agent loops and harnesses','Self-hosted or Anthropic-hosted deployment','Agent design patterns']],
+  ['Applications and Integration · 33.1%',['Turning requirements into code','Messages API basics','Tool use through the API','Streaming','Vision','Extended thinking','Prompt caching','Batches API','Software engineering practice','Application design across interfaces','Configuration: CLAUDE.md, settings.json, model pinning']],
+  ['Claude Code · 3.1%',['Rules, Skills, Commands, Agents, Agent Memory','Interaction modes','CLAUDE.md hierarchy','Repository setup and settings.json']],
+  ['Evaluation, Testing and Debugging · 2.6%',['Identifying error types','Choosing a recovery strategy','Tracing a failure to integration or model output']],
+  ['Model Selection and Optimization · 16.8%',['Tokens, context windows, sampling, non-determinism','REST and websocket wrapping','Choosing a model on quality, latency and cost','Token budgeting','Caching and cache checkpoints']],
+  ['Prompt and Context Engineering · 11%',['Context management: pruning, compaction, subagent isolation','Prompt engineering principles','Structured outputs and response validation','Defensive parsing']],
+  ['Security and Safety · 8.1%',['Prompt injection and untrusted input','Data leakage and PII handling','Guardrails and secure deployment','Hooks as deterministic guardrails','Identity, secrets and API keys']],
+  ['Tools and MCP · 10.6%',['Function calling and tool descriptions','Tool error handling','Client-side or server-side tools','Building an MCP server: resources, prompts, transports','Choosing built-in tools, custom tools, Skills or MCP']],
+  ['Exam readiness',['Full timed practice exam 1 (53 questions, 120 min)','Full timed practice exam 2','Review every wrong answer']]]),
+ T('iv','Interview Defence',[['',['90-second introduction','Workforce platform: 10 to 4,000 users story','Load spillover: reads, writes, lag, why Kafka','RAG assistant: retrieval, clearance, escalation','Voice assistant: accuracy and approval step','Dataken: multi-tenancy and auth','Six behavioural stories (STAR)','Why this company / why leaving']]]),
+ T('job','Job Hunt',[])];
+const fresh=()=>({v:2,name:'Player',start:today(),lastEval:addDays(today(),-1),streak:0,best:0,shields:0,debt:0,bonus:0,pen:0,days:{},logs:[],tracks:DEFAULT_TRACKS(),
+  cfg:{wdMin:240,weMin:420,wdDsa:2,weDsa:3,wdJob:3,weJob:0,minTracks:2},timer:null,updatedAt:0});
+let needSave=false,S=null,ref=null,syncMode='wait',pushT=null,pushing=false,dirty=false,queue=[];
+
+/* ---------- pure logic ---------- */
+const isWeekend=d=>{const w=new Date(dparse(d)).getDay();return w===0||w===6};
+const entryXp=e=>e.kind==='problem'?({e:20,m:40,h:80}[e.diff]||40)*e.cnt+e.min:e.kind==='job'?15*e.cnt:e.kind==='mock'?e.min*3:e.min*2;
+const levelCost=n=>300+60*(n-1);
+function totalXp(s){let x=s.bonus-s.pen;for(const e of s.logs)x+=entryXp(e);for(const t of s.tracks)x+=(t.auto?0:50*t.topics.filter(p=>p.done).length)+(t.bank||0);return Math.max(0,x)}
+function levelOf(xp){let l=1;while(xp>=levelCost(l)){xp-=levelCost(l);l++}return{l,into:xp,need:levelCost(l)}}
+const rankOf=l=>l>=60?'S':l>=42?'A':l>=28?'B':l>=16?'C':l>=8?'D':'E';
+const titleOf=l=>l>=60?'Sovereign of the stack':l>=42?'Architect':l>=28?'Senior hunter':l>=16?'Gate breaker':l>=8?'Awakened':'Unawakened';
+function trackXp(s,t){let x=(t.auto?0:50*t.topics.filter(p=>p.done).length)+(t.bank||0);for(const e of s.logs)if(e.track===t.id)x+=entryXp(e);return x}
+const trackLevel=x=>{const l=Math.floor(Math.sqrt(x/150))+1;const a=150*(l-1)**2,b=150*l**2;return{l,pct:(x-a)/(b-a)*100,to:b-x}};
+function dayStats(s,d){let min=0,dsa=0,job=0;const tr=new Set();for(const e of s.logs){if(e.d!==d)continue;min+=e.min;if(e.kind==='job')job+=e.cnt;else tr.add(e.track);if(e.kind==='problem'&&e.track==='dsa')dsa+=e.cnt}return{min,dsa,job,tracks:tr.size}}
+function questsFor(s,d,debt){const we=isWeekend(d),c=s.cfg,st=dayStats(s,d),q=[];
+  q.push({k:'min',label:'Focused minutes',cur:st.min,target:(we?c.weMin:c.wdMin)});
+  if(debt>0)q.push({k:'pen',label:'Penalty: extra minutes for the missed day',cur:Math.max(0,st.min-(we?c.weMin:c.wdMin)),target:60*debt,pen:true});
+  const d1=we?c.weDsa:c.wdDsa;if(d1>0)q.push({k:'dsa',label:'DSA problems solved',cur:st.dsa,target:d1});
+  q.push({k:'tr',label:'Different skills trained',cur:st.tracks,target:c.minTracks});
+  const j=we?c.weJob:c.wdJob;if(j>0)q.push({k:'job',label:'Job hunt actions (referral asks, messages, applications)',cur:st.job,target:j});
+  for(const x of q)x.done=x.cur>=x.target;return q}
+const cleared=(s,d,debt)=>questsFor(s,d,debt).every(q=>q.done);
+/* closes every finished day that was not cleared; returns messages */
+function evalPast(s,now){const y=addDays(dstr(now),-1),out=[];let d=addDays(s.lastEval,1),n=0;
+  while(d<=y&&n<120){n++;const st=(s.days[d]||{}).status;
+    if(st!=='cleared'&&!EXEMPT[d]&&d>=s.start){if(s.shields>0){s.shields--;s.days[d]={status:'shielded'};out.push({d,type:'shield'})}
+      else{s.days[d]={status:'failed'};out.push({d,type:'fail',streak:s.streak});s.streak=0;s.pen+=Math.min(200,totalXp(s));s.debt=Math.min(2,s.debt+1)}}
+    d=addDays(d,1)}
+  if(y>s.lastEval)s.lastEval=y;return out}
+function tryClear(s,d){if((s.days[d]||{}).status==='cleared'||!cleared(s,d,s.debt))return null;
+  s.days[d]={status:'cleared'};s.streak++;s.best=Math.max(s.best,s.streak);const bonus=100+Math.min(100,5*s.streak);s.bonus+=bonus;const hadDebt=s.debt;s.debt=0;
+  let shield=false;if(s.streak%7===0&&s.shields<2){s.shields++;shield=true}return{bonus,shield,hadDebt}}
+
+/* ---------- storage ---------- */
+function migrate(o){const f=fresh();const s=Object.assign(f,o||{});s.cfg=Object.assign(fresh().cfg,(o||{}).cfg||{});if(!Array.isArray(s.tracks)||!s.tracks.length||(s.v||1)<2){s.tracks=DEFAULT_TRACKS();s.v=2;needSave=true}if(!Array.isArray(s.logs))s.logs=[];if(!s.days)s.days={};return s}
+function loadLocal(){try{const r=localStorage.getItem(KEY);if(r)return migrate(JSON.parse(r))}catch(e){}return null}
+function save(){S.updatedAt=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}dirty=true;clearTimeout(pushT);pushT=setTimeout(push,gh?6000:1200)}
+async function push(){if(!ref||pushing||!dirty)return;pushing=true;dirty=false;try{await ref.set({json:JSON.stringify(S),updatedAt:S.updatedAt});setSync('cloud')}catch(e){dirty=true;setSync('device')}pushing=false;if(dirty&&ref){clearTimeout(pushT);pushT=setTimeout(push,4000)}}
+function setSync(m){syncMode=m;$('sync').textContent=m==='cloud'?(gh?'Synced to your GitHub repository':'Saved to your account'):m==='device'?'Saved on this device only':'Connecting…';$('sync').style.color=m==='device'?'var(--gold)':''}
+async function initSync(){const giveUp=setTimeout(()=>{if(syncMode==='wait')setSync('device')},10000);
+  try{if(!(window.claude&&window.claude.use))throw 0;const[db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);if(!db||!user)throw 0;
+    const id=await user.id();ref=db.collection('data/users/'+id).doc('state');const snap=await ref.get();
+    if(snap.exists){const r=JSON.parse(snap.data().json);if((r.updatedAt||0)>(S.updatedAt||0)){S=migrate(r);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}boot(false)}else if((S.updatedAt||0)>(r.updatedAt||0)){dirty=true;push()}}
+    else{dirty=true;if(!S.updatedAt)S.updatedAt=Date.now();push()}
+    setSync('cloud')}catch(e){await ghInit()}clearTimeout(giveUp);intro=true;boot(false)}
+
+/* ---------- GitHub sync (used when the page runs outside claude.ai) ---------- */
+const GHK='leveling-sync';let gh=null,ghSha=null;
+function ghCfg(){try{return JSON.parse(localStorage.getItem(GHK)||'null')}catch(e){return null}}
+const b64e=s=>{const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode.apply(null,b.subarray(i,i+8192));return btoa(o)};
+const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
+async function ghReq(method,body){const r=await fetch('https://api.github.com/repos/'+gh.repo+'/contents/state.json',{method,cache:'no-store',headers:{Authorization:'Bearer '+gh.token,Accept:'application/vnd.github+json'},body:body?JSON.stringify(body):undefined});
+  if(r.status===404&&method==='GET')return null;if(!r.ok)throw Object.assign(new Error('GitHub answered '+r.status),{status:r.status});return r.json()}
+async function ghLoad(){const j=await ghReq('GET');if(!j)return null;ghSha=j.sha;return JSON.parse(b64d(j.content))}
+async function ghSave(json){const put=()=>ghReq('PUT',{message:'state '+new Date().toISOString(),content:b64e(json),sha:ghSha||undefined});let j;
+  try{j=await put()}catch(e){if(e.status!==409&&e.status!==422)throw e;const cur=await ghReq('GET');ghSha=cur?cur.sha:null;j=await put()}ghSha=j.content.sha}
+async function ghInit(){gh=ghCfg();if(!gh||!gh.token||!gh.repo){gh=null;setSync('device');return false}
+  try{const r=await ghLoad();ref={set:d=>ghSave(d.json)};
+    if(r&&(r.updatedAt||0)>(S.updatedAt||0)){S=migrate(r);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}boot(false)}
+    else if(!r||(S.updatedAt||0)>(r.updatedAt||0)){dirty=true;if(!S.updatedAt)S.updatedAt=Date.now();push()}
+    setSync('cloud');return true}
+  catch(e){ref=null;setSync('device');if($('gh-msg'))$('gh-msg').textContent='Could not reach the repository ('+e.message+'). Check the name and the token.';return false}}
+$('gh-on').onclick=async()=>{const repo=$('gh-repo').value.trim().replace(/^https:\/\/github\.com\//,'').replace(/\/$/,''),tok=$('gh-token').value.trim()||((ghCfg()||{}).token||'');
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!tok){$('gh-msg').textContent='Enter the repository as owner/name and paste a token.';return}
+  try{localStorage.setItem(GHK,JSON.stringify({repo,token:tok}))}catch(e){}$('gh-token').value='';$('gh-msg').textContent='Connecting…';
+  if(await ghInit()){$('gh-msg').textContent='Connected. This device now syncs with '+repo+'.';render()}};
+$('gh-off').onclick=()=>{try{localStorage.removeItem(GHK)}catch(e){}gh=null;ref=null;ghSha=null;setSync('device');$('gh-msg').textContent='Disconnected. Data stays on this device.'};
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&dirty){clearTimeout(pushT);push()}});
+
+/* ---------- system messages ---------- */
+function say(title,body,alert,tag){queue.push({title,body,alert,tag});if($('veil').hidden)nextMsg()}
+function nextMsg(){const m=queue.shift();if(!m){$('veil').hidden=true;return}$('mwin').className='win'+(m.alert?' alert':'');$('mtag').textContent=m.tag||(m.alert?'Penalty':'System');$('mtitle').textContent=m.title;$('mbody').textContent=m.body;$('veil').hidden=false;$('mok').focus()}
+$('mok').onclick=nextMsg;
+
+/* ---------- render ---------- */
+function fmtDate(d){return new Date(dparse(d)).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})}
+function render(){const td=today(),xp=totalXp(S),lv=levelOf(xp);
+  $('pname').textContent=S.name;$('rank').textContent=rankOf(lv.l);$('lvl').textContent='LV '+lv.l;$('title').textContent=titleOf(lv.l)+' · '+rankOf(lv.l)+'-rank';
+  $('xpbar').style.width=(lv.into/lv.need*100).toFixed(1)+'%';$('xptxt').textContent=lv.into+' / '+lv.need+' XP';
+  $('c-streak').textContent=S.streak;$('c-best').textContent=S.best;$('c-shield').textContent=S.shields;$('c-fail').textContent=Object.values(S.days).filter(x=>x.status==='failed').length;
+  const done=(S.days[td]||{}).status==='cleared',qs=questsFor(S,td,done?0:S.debt);
+  $('qhead').textContent='Daily quest · '+fmtDate(td);$('qstate').textContent=done?'Cleared':'In progress';$('qstate').style.color=done?'var(--ok)':'var(--gold)';$('qstate').style.borderColor=done?'var(--ok)':'var(--gold)';
+  $('questwin').className='win'+(!done&&S.debt?' alert':'');
+  $('qsub').textContent=EXEMPT[td]&&!done?'Today is exempt. Nothing is taken if you miss it, but clearing it still starts your streak.':done?'Today is safe. Anything more you log is extra XP.':S.debt?'A penalty is active. Clear today in full to remove it.':'Fail to clear this before midnight and the system takes your streak.';
+  $('quests').innerHTML=qs.map(q=>{const p=Math.min(100,q.cur/q.target*100);return '<div class="quest'+(q.done?' done':'')+(q.pen?' pen':'')+'"><div class="box">'+(q.done?'✓':'')+'</div><div class="grow"><div class="ql">'+esc(q.label)+'</div><div class="bar'+(q.done?' ok':' gold')+'" style="margin-top:5px;height:6px"><i style="width:'+p+'%"></i></div></div><div class="num">'+Math.min(q.cur,9999)+' / '+q.target+'</div></div>'}).join('');
+  const logs=S.logs.filter(e=>e.d===td).sort((a,b)=>b.t-a.t);$('todaylog').innerHTML=logs.length?logs.map(e=>logRow(e,true)).join(''):'<p class="muted" style="margin:0">Nothing logged yet today. The quest is waiting.</p>';
+  renderSkills();renderHistory();renderTimer()}
+const KIND={study:'Study',problem:'Problems',revise:'Revision',mock:'Mock',job:'Job hunt'};
+const tname=id=>(S.tracks.find(t=>t.id===id)||{name:'Removed skill'}).name;
+function logRow(e,undo){const can=undo&&Date.now()-e.t<6e5&&(S.days[e.d]||{}).status!=='cleared';
+  return '<div class="log"><span class="pill">'+KIND[e.kind]+'</span><div class="grow"><b>'+esc(tname(e.track))+'</b> <span class="muted num">'+(e.min?e.min+' min':'')+(e.kind==='problem'||e.kind==='job'?' · ×'+e.cnt:'')+(undo?'':' · '+fmtDate(e.d))+'</span><div class="muted">'+esc(e.note||'')+'</div></div><div class="col" style="align-items:flex-end;gap:4px"><span class="num xp">+'+entryXp(e)+'</span>'+(can?'<button class="ghost" data-undo="'+e.id+'">Undo</button>':'')+'</div></div>'}
+const sel={};
+function groupsOf(t){const G=[];if(t.topics.some(p=>p.g)){t.topics.forEach((p,i)=>{const g=p.g||'Other';let o=G.find(x=>x.name===g);if(!o)G.push(o={name:g,idx:[]});o.idx.push(i)})}else t.topics.forEach((p,i)=>G.push({name:p.n,idx:[i],single:true}));return G}
+const cut2=(s,n)=>s.length>n?s.slice(0,n-1)+'…':s;
+/* draws a track as a literal tree: woven trunk, one branch per group, one leaf per node; lit leaves glow */
+function treeSvg(t,G,cur){const n=G.length,single=G[0].single,sp=single?42:46,W=1000,H=280+n*sp,cx=W/2,base=H-128,top=base-104-(n-1)*sp,foot=base+62;
+  const tot=t.topics.length,dn=t.topics.filter(p=>p.done).length,fr=tot?dn/tot:0;let s='',lit='';
+  for(const dx of[-230,-150,-80,-36,36,80,150,230])s+='<path class="strand" stroke-width="'+(Math.abs(dx)<100?6:3.5)+'" d="M'+(cx+dx*.08)+' '+(foot+8)+' Q'+(cx+dx*.45)+' '+(foot+16)+' '+(cx+dx)+' '+(foot+52-Math.abs(dx)*.04)+'"/>';
+  for(let k=0;k<7;k++){let d='';for(let y=foot+10;y>=top;y-=12){const f=(y-top)/(foot+10-top),x=cx+(k-3)*(2.2+11*Math.pow(f,1.6))+Math.sin(y/29+k*1.9)*(3+3*f);d+=(d?'L':'M')+x.toFixed(1)+' '+y}
+    s+='<path class="strand" stroke-width="6" d="'+d+'"/><path class="strand on" stroke-width="3" style="opacity:'+(fr?.2+.8*fr:0).toFixed(2)+'" d="'+d+'"/>'}
+  G.forEach((g,k)=>{const side=k%2?1:-1,y0=base-64-k*sp,cnt=g.idx.length,d1=g.idx.filter(i=>t.topics[i].done).length,cols=Math.ceil(cnt/4),len=(single?170:112+cols*19)+46*(1-k/Math.max(1,n-1));
+    const x1=cx+side*len,y1=y0-58-len*.07,qx=cx+side*len*.5,qy=y0+4,cls='br'+(d1===cnt?' full':d1?' part':'')+(k===cur?' sel':'');
+    const path='M'+cx+' '+y0+' Q'+qx+' '+qy+' '+x1+' '+y1;let lv='';
+    g.idx.forEach((ti,j)=>{const col=Math.floor(j/4),row=j%4,u=single?1:.34+.66*(col+.5)/cols,off=single?0:[-9,9,-23,23][row];
+      const px=(1-u)*(1-u)*cx+2*(1-u)*u*qx+u*u*x1,py=(1-u)*(1-u)*y0+2*(1-u)*u*qy+u*u*y1,tx=2*(1-u)*(qx-cx)+2*u*(x1-qx),ty=2*(1-u)*(qy-y0)+2*u*(y1-qy),m=Math.hypot(tx,ty)||1;
+      const c='<circle cx="'+(px-ty/m*off).toFixed(1)+'" cy="'+(py+tx/m*off).toFixed(1)+'" r="'+(single?10:6.2)+'"';
+      if(t.topics[ti].done)lit+=c+' class="leaf lit"/>';else lv+=c+' class="leaf"/>'});
+    s+='<g class="'+cls+'" data-br="'+t.id+':'+k+'"><path class="w" d="'+path+'"/><path class="w thin" transform="translate(0,5)" d="M'+cx+' '+y0+' Q'+qx+' '+qy+' '+(cx+side*len*.72)+' '+(y0-30-len*.04)+'"/>'+lv+'<text x="'+(x1+side*16)+'" y="'+(y1+5)+'" text-anchor="'+(side>0?'start':'end')+'">'+esc(cut2(g.name.replace(/ · .*/,''),20))+(single?'':' '+d1+'/'+cnt)+'</text><path class="hit" d="'+path+'"/></g>'});
+  s+='<g style="filter:drop-shadow(0 0 5px var(--glow))">'+lit+'</g>';
+  /* the player on the throne at the foot of the tree, holding two strands */
+  const lv=levelOf(totalXp(S)).l,b=base;
+  s+='<path class="strand on" stroke-width="3" d="M'+(cx-40)+' '+(b+30)+' Q'+(cx-36)+' '+(b-30)+' '+(cx-6)+' '+(b-74)+'"/><path class="strand on" stroke-width="3" d="M'+(cx+40)+' '+(b+30)+' Q'+(cx+36)+' '+(b-30)+' '+(cx+6)+' '+(b-74)+'"/>';
+  s+='<polygon class="seat" points="'+(cx-34)+','+(b+80)+' '+(cx-27)+','+(b-6)+' '+cx+','+(b-22)+' '+(cx+27)+','+(b-6)+' '+(cx+34)+','+(b+80)+'"/>';
+  s+='<rect class="seat" x="'+(cx-48)+'" y="'+(b+44)+'" width="14" height="36"/><rect class="seat" x="'+(cx+34)+'" y="'+(b+44)+'" width="14" height="36"/>';
+  s+='<path class="fig" d="M'+(cx-17)+' '+(b+78)+' L'+(cx-12)+' '+(b+34)+' Q'+cx+' '+(b+25)+' '+(cx+12)+' '+(b+34)+' L'+(cx+17)+' '+(b+78)+' Z"/><circle class="fig" cx="'+cx+'" cy="'+(b+17)+'" r="8.5"/>';
+  s+='<path class="arm" d="M'+(cx-11)+' '+(b+38)+' L'+(cx-40)+' '+(b+30)+'"/><path class="arm" d="M'+(cx+11)+' '+(b+38)+' L'+(cx+40)+' '+(b+30)+'"/>';
+  s+='<text class="seatt" x="'+cx+'" y="'+(b+64)+'" text-anchor="middle">'+rankOf(lv)+'</text>';
+  s+='<polygon class="crown'+(fr===1?' on':'')+'" points="'+cx+','+(top-34)+' '+(cx+10)+','+(top-16)+' '+cx+','+(top+2)+' '+(cx-10)+','+(top-16)+'"/>';
+  return '<div class="treewrap"><svg class="tree" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(t.name)+': '+dn+' of '+tot+' nodes lit"><title>'+esc(t.name)+'</title>'+s+'</svg></div>'}
+const chips=(t,idx)=>'<div class="nodes">'+idx.map(i=>{const p=t.topics[i];return '<button class="node'+(p.done?' lit':'')+'" data-node="'+t.id+':'+i+'" aria-pressed="'+(p.done?'true':'false')+'">'+(p.d?'<i class="'+p.d+'"></i>':'')+esc(p.n)+'</button>'}).join('')+'</div>';
+function renderSkills(){const open=new Set([...document.querySelectorAll('.skill[open]')].map(x=>x.dataset.id));
+  $('skills').innerHTML=S.tracks.filter(t=>t.id!=='job').map(t=>{const x=trackXp(S,t),lv=trackLevel(x),dn=t.topics.filter(p=>p.done).length,G=groupsOf(t);let body='<p class="muted" style="margin:0">No nodes yet. Add what you need to cover.</p>';
+    if(G.length){const single=G[0].single;let cur=sel[t.id];if(cur==null||!G[cur]){cur=G.findIndex(g=>g.idx.some(i=>!t.topics[i].done));if(cur<0)cur=0}
+      body=treeSvg(t,G,single?-1:cur)+(single?'<div class="ghead"><span>Tap a node to light it</span></div>'+chips(t,t.topics.map((p,i)=>i)):'<div class="ghead"><span>Branch: '+esc(G[cur].name)+'</span><span class="num">'+G[cur].idx.filter(i=>t.topics[i].done).length+'/'+G[cur].idx.length+'</span></div>'+chips(t,G[cur].idx)+'<p class="muted" style="margin:6px 0 0">Tap another branch on the tree to open it.</p>')}
+    return '<details class="skill" data-id="'+t.id+'"'+(open.has(t.id)?' open':'')+'><summary><div><b style="font-family:var(--f-display);font-size:17px;letter-spacing:.05em">'+esc(t.name)+'</b> <span class="muted num">'+(t.topics.length?dn+'/'+t.topics.length+' lit':'')+(t.cycles?' · revision cycle '+((t.cycle||0)+1):'')+'</span><div class="bar'+(t.topics.length&&dn===t.topics.length?' ok':'')+'" style="margin-top:6px;height:6px"><i style="width:'+(t.topics.length?dn/t.topics.length*100:0).toFixed(1)+'%"></i></div></div><div class="num" style="text-align:right">LV '+lv.l+'<div class="muted">'+x+' XP</div></div></summary><div class="body">'+body+
+      '<div class="row" style="margin-top:10px"><input class="grow" data-newtopic="'+t.id+'" maxlength="90" placeholder="Add a node" aria-label="Add a node to '+esc(t.name)+'"><button class="ghost" data-addtopic="'+t.id+'">Add</button><button class="ghost" data-rename="'+t.id+'">Rename tree</button></div></div></details>'}).join('');
+  const opts=S.tracks.filter(t=>t.id!=='job').map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('');
+  for(const id of['f-track','t-track']){const el=$(id),v=el.value;el.innerHTML=opts;if(v&&[...el.options].some(o=>o.value===v))el.value=v}}
+document.addEventListener('click',ev=>{const b=ev.target.closest('[data-br]');if(b){const a=b.getAttribute('data-br').split(':');sel[a[0]]=+a[1];renderSkills()}});
+/* a tree that is fully lit goes dark again: the next revision cycle starts */
+function cycleCheck(t){if(!t.cycles||!t.topics.length||!t.topics.every(p=>p.done))return;
+  t.cycle=(t.cycle||0)+1;if(!t.auto)t.bank=(t.bank||0)+50*t.topics.length;
+  for(const p of t.topics){p.done=false;delete p.at;delete p.log;delete p.pre}
+  S.bonus+=500;say('Tree cleared','Every node of '+t.name+' was lit. Bonus +500 XP. The tree is dark again: revision cycle '+(t.cycle+1)+' begins.',false,'System')}
+function nodeClick(tid,i){const t=S.tracks.find(x=>x.id===tid),p=t&&t.topics[i];if(!p)return;const prev=levelOf(totalXp(S)).l,now=Date.now();
+  if(!p.done){p.done=true;p.at=now;delete p.pre;
+    if(t.auto){const id=now.toString(36)+Math.random().toString(36).slice(2,6);S.logs.push({id,d:today(),t:now,track:t.id,kind:'problem',min:0,cnt:1,diff:(p.d||'M').toLowerCase(),note:p.n,auto:1});p.log=id}
+    cycleCheck(t)}
+  else if(p.at&&now-p.at<6e5){p.done=false;if(p.log){S.logs=S.logs.filter(e=>e.id!==p.log);delete p.log}delete p.at}
+  else{say('Locked','A lit node stays lit. You can only undo it within ten minutes.',true,'System');return}
+  afterChange(prev)}
+document.addEventListener('click',ev=>{const n=ev.target.closest('[data-node]');if(n){const a=n.dataset.node.split(':');nodeClick(a[0],+a[1])}});
+function renderHistory(){const td=today();let h='';const start=addDays(td,-(111+new Date(dparse(td)).getDay()));
+  for(let d=start;d<=td;d=addDays(d,1)){const st=(S.days[d]||{}).status,any=S.logs.some(e=>e.d===d);h+='<i class="'+(st==='cleared'?'c':st==='failed'?'f':st==='shielded'?'s':any?'p':'')+'" title="'+fmtDate(d)+(st?': '+st:any?': logged':'')+'"></i>'}
+  $('heat').innerHTML=h;
+  let min=0,prob=0,job=0;for(const e of S.logs){min+=e.min;if(e.kind==='problem')prob+=e.cnt;if(e.kind==='job')job+=e.cnt}
+  const cl=Object.values(S.days).filter(x=>x.status==='cleared').length;
+  $('totals').innerHTML=[['Hours trained',(min/60).toFixed(1)],['Problems solved',prob],['Job actions',job],['Days cleared',cl],['Total XP',totalXp(S)]].map(x=>'<div class="chip"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>').join('');
+  const all=S.logs.slice().sort((a,b)=>b.t-a.t).slice(0,40);$('alllog').innerHTML=all.length?all.map(e=>logRow(e,false)).join(''):'<p class="muted" style="margin:0">Your history starts with the first entry.</p>'}
+function renderTimer(){const t=S.timer;$('t-start').hidden=!!t;$('t-stop').hidden=!t;$('t-track').disabled=!!t;if(t)$('t-track').value=t.track;tick()}
+function tick(){const n=new Date(),end=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1).getTime(),m=Math.floor((end-n)/6e4);$('c-left').textContent=String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+  const t=S&&S.timer;if(t){const left=50*60-Math.floor((Date.now()-t.start)/1000);const a=Math.abs(left);$('tclock').textContent=(left<0?'+':'')+String(Math.floor(a/60)).padStart(2,'0')+':'+String(a%60).padStart(2,'0');$('tclock').style.color=left<=0?'var(--ok)':'var(--gold)'}else{$('tclock').textContent='50:00';$('tclock').style.color='var(--gold)'}}
+
+/* ---------- actions ---------- */
+function afterChange(prevLevel){const r=tryClear(S,today());save();render();
+  if(r)say('Daily quest cleared','Streak: '+S.streak+' day'+(S.streak===1?'':'s')+'. Bonus +'+r.bonus+' XP.'+(r.hadDebt?' The penalty is lifted.':'')+(r.shield?' You earned a shield.':''),false,'Quest complete');
+  const lv=levelOf(totalXp(S)).l;if(lv>prevLevel)say('Level up','You reached level '+lv+'.'+(rankOf(lv)!==rankOf(prevLevel)?' New rank: '+rankOf(lv)+'.':''),false,'System')}
+function kindUI(){const k=$('f-kind').value;$('l-cnt').hidden=!(k==='problem'||k==='job');$('l-diff').hidden=k!=='problem';$('f-track').disabled=k==='job';
+  $('l-note').textContent=k==='job'?'What did you do? (who, which company)':k==='problem'?'Which problems, and what was the trick? (at least 20 characters)':'What did you learn? (at least 20 characters)';if(k==='job'&&$('f-min').value==='50')$('f-min').value='0'}
+$('f-kind').onchange=kindUI;
+$('logform').onsubmit=ev=>{ev.preventDefault();const k=$('f-kind').value,min=Math.round(+$('f-min').value||0),cnt=Math.round(+$('f-cnt').value||1),note=$('f-note').value.trim(),td=today();let err='';
+  if(min<0||min>240)err='Minutes must be between 0 and 240 for one entry.';
+  else if((k==='study'||k==='revise'||k==='mock')&&min<10)err='A session needs at least 10 minutes.';
+  else if((k==='problem'||k==='job')&&(cnt<1||cnt>30))err='Count must be between 1 and 30.';
+  else if(note.length<(k==='job'?8:20))err='Write a real note first. The system does not accept empty work.';
+  else if(dayStats(S,td).min+min>960)err='That is more than 16 hours in one day. Log what you actually did.';
+  $('f-err').textContent=err;if(err)return;
+  const prev=levelOf(totalXp(S)).l;S.logs.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),d:td,t:Date.now(),track:k==='job'?'job':$('f-track').value,kind:k,min,cnt:(k==='problem'||k==='job')?cnt:1,diff:$('f-diff').value,note});
+  $('f-note').value='';afterChange(prev)};
+document.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
+  if(b.dataset.tab){for(const x of $('tabs').children){x.classList.toggle('on',x===b);$('tab-'+x.dataset.tab).hidden=x!==b}if(b.dataset.tab==='settings')fillSettings()}
+  else if(b.dataset.undo){S.logs=S.logs.filter(e=>e.id!==b.dataset.undo);save();render()}
+  else if(b.dataset.addtopic){const inp=document.querySelector('[data-newtopic="'+b.dataset.addtopic+'"]'),v=inp.value.trim();if(v){S.tracks.find(t=>t.id===b.dataset.addtopic).topics.push({n:v,done:false});save();render()}}
+  else if(b.dataset.rename){const inp=document.querySelector('[data-newtopic="'+b.dataset.rename+'"]'),v=inp.value.trim();if(v){S.tracks.find(t=>t.id===b.dataset.rename).name=v.slice(0,40);save();render()}else{inp.placeholder='Type the new name here, then press Rename';inp.focus()}}});
+$('addskill').onclick=()=>{const v=$('newskill').value.trim();if(!v)return;S.tracks.splice(S.tracks.length-1,0,{id:'t'+Date.now().toString(36),name:v.slice(0,40),topics:[]});$('newskill').value='';save();render()};
+$('t-start').onclick=()=>{S.timer={start:Date.now(),track:$('t-track').value};save();renderTimer()};
+$('t-stop').onclick=()=>{const t=S.timer,m=Math.max(1,Math.min(240,Math.round((Date.now()-t.start)/6e4)));S.timer=null;save();renderTimer();$('f-kind').value='study';kindUI();$('f-track').value=t.track;$('f-min').value=m;$('f-note').focus();$('logform').scrollIntoView({behavior:'smooth',block:'center'})};
+function fillSettings(){$('s-name').value=S.name;for(const k of['wdMin','weMin','wdDsa','weDsa','wdJob'])$('s-'+k).value=S.cfg[k];$('backup').value=JSON.stringify(S);const c=ghCfg();if(c){$('gh-repo').value=c.repo;$('gh-token').placeholder='Token saved on this device'}$('ghwin').hidden=!!(window.claude&&window.claude.use)}
+$('s-save').onclick=()=>{S.name=$('s-name').value.trim().slice(0,24)||'Player';const lim={wdMin:[30,600],weMin:[30,900],wdDsa:[0,20],weDsa:[0,20],wdJob:[0,20]};
+  const done=(S.days[today()]||{}).status==='cleared';for(const k in lim){const v=Math.round(+$('s-'+k).value);if(v>=lim[k][0]&&v<=lim[k][1]){if(done||v>=S.cfg[k]||!S.logs.length)S.cfg[k]=v;else S.pendingCfg=Object.assign(S.pendingCfg||{},{[k]:v,from:addDays(today(),1)})}}
+  save();render();fillSettings();$('s-msg').textContent=S.pendingCfg?'Saved. Lower targets start tomorrow, so today cannot be made easier.':'Saved.'};
+$('b-copy').onclick=async()=>{$('backup').value=JSON.stringify(S);try{await navigator.clipboard.writeText($('backup').value);$('b-msg').textContent='Copied.'}catch(e){$('backup').select();$('b-msg').textContent='Select all and copy.'}};
+$('b-load').onclick=()=>{try{const o=JSON.parse($('backup').value);if(!o||!Array.isArray(o.logs)||!Array.isArray(o.tracks))throw 0;S=migrate(o);save();boot(false);$('b-msg').textContent='Backup restored.'}catch(e){$('b-msg').textContent='That text is not a valid backup.'}};
+$('r1').onclick=()=>{$('r2').hidden=$('r3').hidden=false};$('r3').onclick=()=>{$('r2').hidden=$('r3').hidden=true};
+$('r2').onclick=()=>{S=fresh();save();$('r2').hidden=$('r3').hidden=true;boot(false);say('System reset','Level 1. Day zero. Begin again.',false)};
+
+/* ---------- boot ---------- */
+function applyPending(){const p=S.pendingCfg;if(p&&today()>=p.from){for(const k in p)if(k!=='from')S.cfg[k]=p[k];delete S.pendingCfg;return true}return false}
+let intro=false;function boot(first){const ch=applyPending(),msgs=evalPast(S,Date.now());
+  const fails=msgs.filter(m=>m.type==='fail'),sh=msgs.filter(m=>m.type==='shield');
+  if(sh.length)say('Shield used',sh.length+' missed day'+(sh.length>1?'s were':' was')+' absorbed by a shield. Your streak survives. Shields left: '+S.shields+'.',false,'System');
+  if(fails.length)say('Daily quest failed','You missed '+fails.length+' day'+(fails.length>1?'s':'')+' ('+fails.map(m=>fmtDate(m.d)).slice(0,3).join(', ')+(fails.length>3?'…':'')+'). Streak reset to zero. XP removed. Today\'s quest now carries a penalty.',true);
+  if(ch||msgs.length||needSave){needSave=false;save()}kindUI();render();
+  if(first)return;if(intro&&!S.logs.length&&!S.seen){S.seen=1;save();say('You have been chosen as a player','From today the system tracks every hour you train. Clear the daily quest before midnight. Miss it, and the system takes your streak.',false,'Notification')}}
+S=loadLocal()||fresh();boot(true);initSync();
+setInterval(()=>{tick();if(S.lastEval<addDays(today(),-1))boot(false)},1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){render()}});
+</script>
+
+</body>
+</html>
