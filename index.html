@@ -346,6 +346,18 @@ function tryClear(s,d){if((s.days[d]||{}).status==='cleared'||!cleared(s,d,s.deb
   s.days[d]={status:'cleared'};s.streak++;s.best=Math.max(s.best,s.streak);const bonus=100+Math.min(100,5*s.streak);s.bonus+=bonus;const hadDebt=s.debt;s.debt=0;
   let shield=false;if(s.streak%7===0&&s.shields<2){s.shields++;shield=true}return{bonus,shield,hadDebt}}
 
+/* rebuilds day results, streak, shields, penalty and bonus from the logs, day by day from the start date.
+   A day once cleared stays cleared (targets can change later); any other day is judged from its logs. */
+function replay(s){const td=today(),y=addDays(td,-1);if(!s.start||s.start>td)return s;
+  const tree=s.tracks.reduce((a,t)=>a+(t.auto?0:50*t.topics.filter(p=>p.done).length)+(t.bank||0),0);
+  let streak=0,best=0,shields=0,debt=0,pen=0,bonus=500*s.tracks.reduce((a,t)=>a+(t.cycle||0),0),n=0;const days={};
+  for(let d=s.start;d<=td&&n<1000;d=addDays(d,1),n++){
+    if((s.days[d]||{}).status==='cleared'||cleared(s,d,debt)){days[d]={status:'cleared'};streak++;best=Math.max(best,streak);bonus+=100+Math.min(100,5*streak);debt=0;if(streak%7===0&&shields<2)shields++}
+    else if(d<=y&&!EXEMPT[d]){if(shields>0){shields--;days[d]={status:'shielded'}}
+      else{let xp=bonus-pen+tree;for(const e of s.logs)if(e.d<=d)xp+=entryXp(e);days[d]={status:'failed'};streak=0;pen+=Math.min(200,Math.max(0,xp));debt=Math.min(2,debt+1)}}}
+  Object.assign(s,{days,streak,best,shields,debt,pen,bonus});if(y>=s.start&&(s.lastEval||'')<y)s.lastEval=y;return s}
+const derived=s=>JSON.stringify([s.days,s.streak,s.best,s.shields,s.debt,s.pen,s.bonus,s.lastEval]);
+
 /* ---------- storage ---------- */
 function migrate(o){const f=fresh();const s=Object.assign(f,o||{});s.cfg=Object.assign(fresh().cfg,(o||{}).cfg||{});if(!Array.isArray(s.tracks)||!s.tracks.length||(s.v||1)<2){s.tracks=DEFAULT_TRACKS();s.v=2;needSave=true}if(!Array.isArray(s.logs))s.logs=[];if(!s.days)s.days={};return s}
 function loadLocal(){try{const r=localStorage.getItem(KEY);if(r)return migrate(JSON.parse(r))}catch(e){}return null}
@@ -361,7 +373,7 @@ function mergeStates(a,b){if(!b)return a;if(!a)return migrate(clone(b));
   const ra=a.resetAt||0,rb=b.resetAt||0;
   if(ra!==rb){const R=ra>rb?a:b,X=ra>rb?b:a,s=migrate(clone(R)),del=new Set(s.del||[]),have=new Set(s.logs.map(e=>e.id));
     for(const e of X.logs||[])if(e.t>(R.resetAt||0)&&!have.has(e.id)&&!del.has(e.id))s.logs.push(clone(e));
-    s.logs.sort((x,y)=>(x.t-y.t)||(x.id<y.id?-1:1));return s}
+    s.logs.sort((x,y)=>(x.t-y.t)||(x.id<y.id?-1:1));return replay(s)}
   const newer=(b.updatedAt||0)>=(a.updatedAt||0),N=newer?b:a,O=newer?a:b,s=migrate(clone(N));
   const del=new Set([...(O.del||[]),...(N.del||[])]);s.del=[...del].slice(-400);
   const logs=new Map();for(const e of[...(O.logs||[]),...(N.logs||[])])if(!del.has(e.id))logs.set(e.id,clone(e));
@@ -378,7 +390,7 @@ function mergeStates(a,b){if(!b)return a;if(!a)return migrate(clone(b));
     t.topics=t.topics.map(p=>{const q=om.get(p.n);om.delete(p.n);return q&&(q.mt||0)>(p.mt||0)?clone(q):p});
     for(const q of om.values())t.topics.push(clone(q))}
   for(const o of ot.values()){const j=s.tracks.length&&s.tracks[s.tracks.length-1].id==='job'?s.tracks.length-1:s.tracks.length;s.tracks.splice(j,0,clone(o))}
-  s.updatedAt=Math.max(a.updatedAt||0,b.updatedAt||0);return s}
+  s.updatedAt=Math.max(a.updatedAt||0,b.updatedAt||0);return replay(s)}
 
 const jwt=t=>{try{return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))))}catch(e){return{}}};
 function keepSess(j){const p=jwt(j.access_token);sess={at:j.access_token,rt:j.refresh_token||(sess&&sess.rt),exp:Date.now()+(+j.expires_in||3600)*1000,uid:p.sub,email:p.email||''};
@@ -572,11 +584,11 @@ $('r2').onclick=()=>{S=fresh();S.resetAt=Date.now();save();$('r2').hidden=$('r3'
   document.addEventListener('keydown',e=>{if(e.key==='f'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/INPUT|TEXTAREA|SELECT/.test((e.target.tagName||'')))b.onclick()})})();
 /* ---------- boot ---------- */
 function applyPending(){const p=S.pendingCfg;if(p&&today()>=p.from){for(const k in p)if(k!=='from')S.cfg[k]=p[k];delete S.pendingCfg;return true}return false}
-let intro=false;function boot(first){const ch=applyPending(),msgs=evalPast(S,Date.now());
+let intro=false;function boot(first){const ch=applyPending(),msgs=evalPast(S,Date.now()),was=derived(S);replay(S);const fixed=derived(S)!==was;
   const fails=msgs.filter(m=>m.type==='fail'),sh=msgs.filter(m=>m.type==='shield');
   if(sh.length)say('Shield used',sh.length+' missed day'+(sh.length>1?'s were':' was')+' absorbed by a shield. Your streak survives. Shields left: '+S.shields+'.',false,'System');
   if(fails.length)say('Daily quest failed','You missed '+fails.length+' day'+(fails.length>1?'s':'')+' ('+fails.map(m=>fmtDate(m.d)).slice(0,3).join(', ')+(fails.length>3?'…':'')+'). Streak reset to zero. XP removed. Today\'s quest now carries a penalty.',true);
-  if(ch||msgs.length||needSave){needSave=false;save()}kindUI();render();
+  if(ch||msgs.length||needSave||fixed){needSave=false;save()}kindUI();render();
   if(first)return;if(intro&&!S.logs.length&&!S.seen){S.seen=1;save();say('You have been chosen as a player','From today the system tracks every hour you train. Clear the daily quest before midnight. Miss it, and the system takes your streak.',false,'Notification')}}
 S=loadLocal()||fresh();boot(true);initSync();
 setInterval(()=>{tick();if(S.lastEval<addDays(today(),-1))boot(false)},1000);
