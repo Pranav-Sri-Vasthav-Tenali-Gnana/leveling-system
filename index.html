@@ -427,7 +427,7 @@ $('sb-send').onclick=async()=>{const email=$('sb-email').value.trim();if(!/^[^@\
   $('sb-send').disabled=true;sbUI('Sending…');
   try{await sbFetch('/auth/v1/otp'+(here?'?redirect_to='+encodeURIComponent(here):''),{method:'POST',body:JSON.stringify({email,create_user:true})});
     sbUI('Check your inbox and open the link on this device'+(here?'':', or copy it and paste it below')+'. It works once and expires in an hour.')}
-  catch(e){sbUI(e.status===429?'Too many emails just now. Wait a few minutes and try again.':'Could not send the link: '+e.message)}
+  catch(e){sbUI(e.status===429?'Too many emails just now. Wait a few minutes and try again.':!e.status?'This page cannot reach the sync service from here. Open https://pranav-sri-vasthav-tenali-gnana.github.io/leveling-system/ and sign in there.':'Could not send the link: '+e.message)}
   $('sb-send').disabled=false};
 $('sb-paste').onclick=async()=>{let u;try{u=new URL($('sb-link').value.trim())}catch(e){sbUI('That is not a link.');return}
   const token=u.searchParams.get('token'),type=u.searchParams.get('type')||'magiclink';if(!token){sbUI('That link has no sign-in code in it. Copy the whole link from the email.');return}
